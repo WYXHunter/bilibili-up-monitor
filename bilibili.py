@@ -19,6 +19,8 @@ _BASE_HEADERS = {
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     'Origin': 'https://www.bilibili.com',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
 }
 
 
@@ -276,11 +278,13 @@ def _extract_dynamic_content(item):
     return dyn_type, text.strip()
 
 
-def fetch_dynamics(uid, cookie='', max_pages=3):
+def fetch_dynamics(uid, cookie='', max_pages=5):
     """
     Fetch dynamics for a UP主. Returns list of dynamic dicts.
     Each dict: {dynamic_id, type, content, pub_time, raw_json}
+    Includes retry logic for transient failures.
     """
+    start_time = time.time()
     headers = _make_headers(
         cookie=cookie,
         referer=f'https://space.bilibili.com/{uid}/dynamic',
@@ -300,70 +304,103 @@ def fetch_dynamics(uid, cookie='', max_pages=3):
         }
         _sign_params(params, cookie)
 
-        try:
-            resp = requests.get(
-                'https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space',
-                params=params, headers=headers, timeout=15
-            )
+        # Retry up to 2 times on transient errors
+        for attempt in range(2):
+            try:
+                resp = requests.get(
+                    'https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space',
+                    params=params, headers=headers, timeout=15
+                )
 
-            if resp.status_code != 200:
-                print(f'[Bilibili] HTTP {resp.status_code} for {uid}')
-                break
-
-            data = resp.json()
-
-            if data.get('code') != 0:
-                print(f'[Bilibili] API error for {uid}: code={data.get("code")} msg={data.get("message")}')
-                break
-
-            items = data.get('data', {}).get('items', [])
-            for item in items:
-                if not item or not isinstance(item, dict):
-                    continue  # skip null/empty items
-                try:
-                    id_str = item.get('id_str') or str(item.get('id', ''))
-                    dyn_type, content = _extract_dynamic_content(item)
-
-                    # Parse publish time using timestamp in seconds
-                    pub_ts = 0
-                    modules = item.get('modules') or {}
-                    author_module = modules.get('module_author') or {}
-                    pub_ts_val = author_module.get('pub_ts')
-                    if pub_ts_val:
-                        try:
-                            pub_ts = int(pub_ts_val)
-                        except (ValueError, TypeError):
-                            pass
-
-                    pub_time = None
-                    if pub_ts:
-                        pub_time = datetime.datetime.fromtimestamp(pub_ts).isoformat()
-
-                    all_dynamics.append({
-                        'dynamic_id': id_str,
-                        'type': dyn_type,
-                        'content': content,
-                        'pub_time': pub_time,
-                        'raw_json': '',
-                    })
-                except Exception as e:
-                    print(f'[Bilibili] Error processing item: {e}')
+                if resp.status_code == 412 or resp.status_code == 429:
+                    # Rate limited — back off and retry
+                    wait = (attempt + 1) * 2
+                    print(f'[Bilibili] Rate limited (HTTP {resp.status_code}) for {uid}, waiting {wait}s')
+                    time.sleep(wait)
                     continue
 
-            # Pagination
-            has_more = data.get('data', {}).get('has_more', False)
-            new_offset = data.get('data', {}).get('offset', '')
-            if not has_more or not new_offset or new_offset == offset:
-                break
-            offset = new_offset
-            pages += 1
-            time.sleep(0.6)  # rate limiting
+                if resp.status_code != 200:
+                    print(f'[Bilibili] HTTP {resp.status_code} for {uid} (attempt {attempt + 1})')
+                    if attempt < 1:
+                        time.sleep(1)
+                        continue
+                    break
 
-        except requests.exceptions.JSONDecodeError:
-            print(f'[Bilibili] Non-JSON response for {uid} (status={resp.status_code})')
+                data = resp.json()
+
+                if data.get('code') != 0:
+                    code = data.get('code')
+                    msg = data.get('message', '')
+                    if code == -412 and attempt < 1:
+                        # Transient anti-crawl, retry
+                        time.sleep(2)
+                        continue
+                    print(f'[Bilibili] API error for {uid}: code={code} msg={msg}')
+                    break
+
+                # Successful response — process items
+                items = data.get('data', {}).get('items', [])
+                for item in items:
+                    if not item or not isinstance(item, dict):
+                        continue  # skip null/empty items
+                    try:
+                        id_str = item.get('id_str') or str(item.get('id', ''))
+                        dyn_type, content = _extract_dynamic_content(item)
+
+                        # Parse publish time using timestamp in seconds
+                        pub_ts = 0
+                        modules = item.get('modules') or {}
+                        author_module = modules.get('module_author') or {}
+                        pub_ts_val = author_module.get('pub_ts')
+                        if pub_ts_val:
+                            try:
+                                pub_ts = int(pub_ts_val)
+                            except (ValueError, TypeError):
+                                pass
+
+                        pub_time = None
+                        if pub_ts:
+                            pub_time = datetime.datetime.fromtimestamp(pub_ts).isoformat()
+
+                        all_dynamics.append({
+                            'dynamic_id': id_str,
+                            'type': dyn_type,
+                            'content': content,
+                            'pub_time': pub_time,
+                            'raw_json': '',
+                        })
+                    except Exception as e:
+                        print(f'[Bilibili] Error processing item: {e}')
+                        continue
+
+                break  # success, exit retry loop
+
+            except requests.exceptions.JSONDecodeError:
+                print(f'[Bilibili] Non-JSON response for {uid} (status={resp.status_code})')
+                break
+            except requests.exceptions.Timeout:
+                print(f'[Bilibili] Timeout for {uid} (attempt {attempt + 1})')
+                if attempt < 1:
+                    time.sleep(2)
+                    continue
+                break
+            except Exception as e:
+                print(f'[Bilibili] Error fetching dynamics for {uid} (attempt {attempt + 1}): {e}')
+                if attempt < 1:
+                    time.sleep(2)
+                    continue
+                break
+
+        # Pagination
+        has_more = data.get('data', {}).get('has_more', False)
+        new_offset = data.get('data', {}).get('offset', '')
+        if not has_more or not new_offset or new_offset == offset:
             break
-        except Exception as e:
-            print(f'[Bilibili] Error fetching dynamics for {uid}: {e}')
-            break
+        offset = new_offset
+        pages += 1
+        time.sleep(0.3)  # rate limiting (reduced from 0.6s)
+
+    elapsed = time.time() - start_time
+    print(f'[Bilibili] Fetched {len(all_dynamics)} dynamics for {uid} ({pages} pages, {elapsed:.1f}s)')
 
     return all_dynamics

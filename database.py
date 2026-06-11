@@ -53,6 +53,9 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE INDEX IF NOT EXISTS idx_dynamics_up_uid ON dynamics(up_uid);
+        CREATE INDEX IF NOT EXISTS idx_dynamics_created_at ON dynamics(created_at);
+
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT DEFAULT ''
