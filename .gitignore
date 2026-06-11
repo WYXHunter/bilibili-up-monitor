@@ -1,0 +1,9 @@
+data/
+*.db
+*.db-*
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+app.log

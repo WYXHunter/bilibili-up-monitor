@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B站 UP主 动态监控 — 初始配置</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="wizard-page">
+    <div class="wizard-container">
+        <div class="wizard-card">
+            <div class="wizard-header">
+                <svg class="logo" viewBox="0 0 48 48" width="48" height="48">
+                    <rect x="1" y="1" width="46" height="46" rx="10" fill="#FB7299"/>
+                    <text x="24" y="33" text-anchor="middle" fill="white" font-size="24" font-weight="bold">B</text>
+                </svg>
+                <h1>B站 UP主 动态监控</h1>
+                <p class="subtitle">首次使用，请完成以下配置</p>
+            </div>
+
+            <form id="wizard-form" class="wizard-form">
+                <!-- Step 1: DingTalk -->
+                <div class="form-section">
+                    <h3>🔔 钉钉通知配置</h3>
+                    <p class="help-text">
+                        在钉钉群中添加工厂机器人，复制 Webhook 地址。<br>
+                        <a href="https://open.dingtalk.com/document/orgapp/custom-bot-send-message-type" target="_blank">如何获取钉钉 Webhook？</a>
+                    </p>
+                    <div class="form-group">
+                        <label for="webhook">Webhook URL</label>
+                        <input type="url" id="webhook" placeholder="https://oapi.dingtalk.com/robot/send?access_token=xxx" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="secret">加签密钥 (可选，推荐)</label>
+                        <input type="text" id="secret" placeholder="SECxxx..." autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Step 2: Bilibili Cookie -->
+                <div class="form-section">
+                    <h3>🍿 B站 Cookie 配置</h3>
+                    <p class="help-text">
+                        打开 <a href="https://www.bilibili.com" target="_blank">B站</a> 并登录，按 F12 → Application → Cookies → bilibili.com，复制完整 Cookie 字符串。<br>
+                        至少需要包含 <code>buvid3</code> 字段 (未登录也可获取部分动态)。
+                    </p>
+                    <div class="form-group">
+                        <label for="cookie">Cookie</label>
+                        <textarea id="cookie" rows="3" placeholder="buvid3=xxx; b_nut=xxx; ..." autocomplete="off"></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 3: Interval -->
+                <div class="form-section">
+                    <h3>⏱️ 检查间隔</h3>
+                    <div class="form-group">
+                        <label for="interval">检查间隔 (分钟)</label>
+                        <select id="interval">
+                            <option value="1">1 分钟</option>
+                            <option value="3">3 分钟</option>
+                            <option value="5" selected>5 分钟 (推荐)</option>
+                            <option value="10">10 分钟</option>
+                            <option value="15">15 分钟</option>
+                            <option value="30">30 分钟</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg">完成配置，开始使用</button>
+            </form>
+
+            <div id="wizard-status" class="wizard-status"></div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

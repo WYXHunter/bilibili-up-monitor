@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B站 UP主 动态监控</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <svg class="logo" viewBox="0 0 48 48" width="36" height="36">
+                    <rect x="1" y="1" width="46" height="46" rx="10" fill="#FB7299"/>
+                    <text x="24" y="33" text-anchor="middle" fill="white" font-size="24" font-weight="bold">B</text>
+                </svg>
+                <span class="sidebar-title">B站监控</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard">📊 仪表盘</a>
+                <a href="#" class="nav-item" data-page="up_users">👤 UP主管理</a>
+                <a href="#" class="nav-item" data-page="settings">⚙️ 设置</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">监控运行中</span>
+                <button class="btn btn-sm btn-danger" onclick="shutdown()" style="margin-top:8px;width:100%;">⏹ 退出程序</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Dashboard Page -->
+            <div class="page active" id="page-dashboard">
+                <h2>📊 仪表盘</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-up-count">0</div>
+                        <div class="stat-label">追踪 UP主</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">总动态数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-today">0</div>
+                        <div class="stat-label">今日新增</div>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <h3>最新动态</h3>
+                    <button class="btn btn-sm" onclick="checkNow()">🔄 立即检查</button>
+                </div>
+
+                <div class="dynamics-list" id="dynamics-list">
+                    <p class="empty-hint">暂无动态，请先添加 UP主</p>
+                </div>
+            </div>
+
+            <!-- UP Users Page -->
+            <div class="page" id="page-up_users">
+                <h2>👤 UP主管理</h2>
+
+                <div class="add-up-form">
+                    <input type="text" id="add-uid" placeholder="输入 UP主 UID (如 25470223)">
+                    <button class="btn btn-primary" onclick="addUpUser()">添加</button>
+                </div>
+                <p class="help-text">在 UP主 B站空间页的 URL 中可以找到 UID，如 <code>space.bilibili.com/25470223</code></p>
+
+                <div class="up-list" id="up-list">
+                    <p class="empty-hint">还没有添加任何 UP主</p>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="page-settings">
+                <h2>⚙️ 设置</h2>
+                <form id="settings-form" class="settings-form">
+                    <div class="form-section">
+                        <h3>🔔 钉钉通知</h3>
+                        <div class="form-group">
+                            <label for="set-webhook">Webhook URL</label>
+                            <input type="url" id="set-webhook" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="set-secret">加签密钥</label>
+                            <input type="text" id="set-secret" autocomplete="off">
+                        </div>
+                        <button type="button" class="btn btn-sm" onclick="testNotify()">📤 发送测试通知</button>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>🍿 B站 Cookie</h3>
+                        <div class="form-group">
+                            <label for="set-cookie">Cookie</label>
+                            <textarea id="set-cookie" rows="3" autocomplete="off"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>⏱️ 检查间隔</h3>
+                        <div class="form-group">
+                            <label for="set-interval">间隔 (分钟)</label>
+                            <select id="set-interval">
+                                <option value="1">1 分钟</option>
+                                <option value="3">3 分钟</option>
+                                <option value="5">5 分钟</option>
+                                <option value="10">10 分钟</option>
+                                <option value="15">15 分钟</option>
+                                <option value="30">30 分钟</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
